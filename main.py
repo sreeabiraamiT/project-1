@@ -51,3 +51,9 @@ def home():
     Root landing response message.
     """
     return "Electricity bill analyser"
+if __name__ == "__main__":
+    # Read the dynamic PORT variable given by Render, default to 8000 locally
+    port = int(os.environ.get("PORT", 8000))
+    
+    # CRUCIAL: Must bind to host "0.0.0.0" so Render can find it
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
