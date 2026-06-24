@@ -1,1 +1,5 @@
 python-dotenv==1.2.2
+fastapi
+uvicorn
+google-genai
+psycopg2-binary
