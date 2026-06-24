@@ -1,2 +1,2 @@
-DATABASE_URL=postgresql://postgres:abi%402428@localhost/electricity_db
+DATABASE_URL=postgresql://electricity_db_a8y9_user:05TUsY0uttebNkXineXLcc0VTlDj7Bov@dpg-d8tvfj80697c73d4hdqg-a.oregon-postgres.render.com/electricity_db_a8y9
 GEMINI_API_KEY=AQ.Ab8RN6J4zegpGRvsqS0Z0Q08EXvqeH1B7qFdwvS38eOqoDpSnQ
