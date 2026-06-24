@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 import models
-from routers import upload, tips, history
+import upload, tips, history
 from dotenv import load_dotenv
 
 # Load .env variables right at startup so Gemini SDK can access the API key
