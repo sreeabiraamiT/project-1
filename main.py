@@ -17,7 +17,7 @@ app = FastAPI(
 # This prevents browsers from blocking your frontend requests (CORS errors)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # your actual frontend URL
+    allow_origins=["eb-billanalyzer.netlify.app","http://localhost:5173"],  # your actual frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
