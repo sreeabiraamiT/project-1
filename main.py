@@ -1,8 +1,11 @@
+# main.py
+import os  # Included for your dynamic port handling block below
+import uvicorn  # Included for your production runner engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 import models
-import upload, tips, history
+import upload, tips, history, digest_service  # Imported digest_service here
 from dotenv import load_dotenv
 
 # Load .env variables right at startup so Gemini SDK can access the API key
@@ -17,7 +20,7 @@ app = FastAPI(
 # This prevents browsers from blocking your frontend requests (CORS errors)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://project-1-9-sd0n.onrender.com/","http://localhost:5173"],  # your actual frontend URL
+    allow_origins=["https://eb-billanalyzer.netlify.app/", "http://localhost:5173"],  # your actual frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,10 +29,11 @@ app.add_middleware(
 # Automatically builds SQLite or PostgreSQL tables if they don't exist yet
 Base.metadata.create_all(bind=engine)
 
-# Include core feature routers (services.py is imported inside upload.py, not here)
+# Include core feature routers
 app.include_router(upload.router, tags=["Upload"])
 app.include_router(history.router, tags=["History"])
 app.include_router(tips.router, tags=["Tips"])
+app.include_router(digest_service.router)  # Mounted the new digest notifications router here
 
 
 @app.get("/Connection")
@@ -51,6 +55,8 @@ def home():
     Root landing response message.
     """
     return "Electricity bill analyser"
+
+
 if __name__ == "__main__":
     # Read the dynamic PORT variable given by Render, default to 8000 locally
     port = int(os.environ.get("PORT", 8000))
