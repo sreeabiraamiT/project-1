@@ -35,7 +35,7 @@ async def upload_bill(
             db.refresh(user)
 
         # Default fallback placeholders for manual form entries without a file
-        ai_summary = "Manual Entry — No file provided for AI analytics breakdown."
+        ai_summary = "Manual Entry — No file provided for AI analytics breakdown.(manual entry)"
         saving_tips = ["Conserve appliance usage where possible."]
 
         # 2. If a bill file is uploaded, run the unified extraction & tips pipeline
