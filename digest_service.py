@@ -1,14 +1,18 @@
-# services/digest_service.py
+# digest_service.py
 import os
 import base64
 from datetime import date
 from typing import List
+from fastapi import APIRouter, HTTPException  # Changed to APIRouter
+from pydantic import BaseModel
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
-from pydantic import BaseModel
+
+# Initialize the router so main.py can include it
+router = APIRouter()
 
 class DigestRequest(BaseModel):
     user_id: int
@@ -20,11 +24,13 @@ class DigestRequest(BaseModel):
     ai_summary: str
     saving_tips: List[str]
 
+
 def create_pdf(data: DigestRequest) -> str:
-    pdf_file = "/tmp/electricity_digest.pdf" # Using /tmp is safer for cloud deployments
+    # '/tmp/' is safe for cloud deployment environments like Render
+    pdf_file = "/tmp/electricity_digest.pdf"
     styles = getSampleStyleSheet()
     pdf = SimpleDocTemplate(pdf_file)
-    
+
     content = [
         Paragraph("Monthly Electricity Digest", styles["Title"]),
         Spacer(1, 0.2 * inch),
@@ -41,13 +47,17 @@ def create_pdf(data: DigestRequest) -> str:
     ]
 
     if data.saving_tips:
-        tip_items = [ListItem(Paragraph(tip, styles["BodyText"]), bulletType="bullet") for tip in data.saving_tips]
+        tip_items = [
+            ListItem(Paragraph(tip, styles["BodyText"]), bulletType="bullet")
+            for tip in data.saving_tips
+        ]
         content.append(ListFlowable(tip_items, bulletType="bullet"))
     else:
         content.append(Paragraph("No energy-saving tips available.", styles["BodyText"]))
 
     pdf.build(content)
     return pdf_file
+
 
 def send_email_with_pdf(to_email: str, pdf_path: str, data: DigestRequest):
     html_body = f"""
@@ -67,8 +77,9 @@ def send_email_with_pdf(to_email: str, pdf_path: str, data: DigestRequest):
     </ul>
     <p>Your full PDF report is attached.</p>
     """
+
     message = Mail(
-        from_email=os.getenv("FROM_EMAIL", "lifegoeson1568@gmail.com"),
+        from_email="lifegoeson1568@gmail.com",
         to_emails=to_email,
         subject="Monthly Electricity Digest",
         html_content=html_body
@@ -78,6 +89,7 @@ def send_email_with_pdf(to_email: str, pdf_path: str, data: DigestRequest):
         pdf_data = f.read()
 
     encoded_pdf = base64.b64encode(pdf_data).decode()
+
     attachment = Attachment(
         FileContent(encoded_pdf),
         FileName("electricity_digest.pdf"),
@@ -88,3 +100,22 @@ def send_email_with_pdf(to_email: str, pdf_path: str, data: DigestRequest):
 
     sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
     sg.send(message)
+
+
+# Use @router instead of @app
+@router.post("/send-digest", tags=["Notifications"])
+def send_digest(data: DigestRequest):
+    to_email = f"user{data.user_id}@example.com"
+
+    try:
+        pdf_path = create_pdf(data)
+        send_email_with_pdf(to_email, pdf_path, data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {
+        "message": "PDF Digest Sent Successfully",
+        "email": to_email,
+        "user_id": data.user_id,
+        "bill_month": str(data.bill_month)
+    }
