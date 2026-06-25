@@ -51,7 +51,7 @@ def Connection():
 
 
 @app.get("/")
-def home():
+def root():
     """
     Root landing response message.
     """
