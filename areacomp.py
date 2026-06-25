@@ -26,7 +26,7 @@ def compare(area: str, units: float):
 
     avg = area_avg.get(area.strip().lower(), 270)  # default value
 
-    difference = units - avg
+    difference = abs(units - avg)
 
     percent = round((difference / avg) * 100, 2)
 
