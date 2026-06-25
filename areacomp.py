@@ -1,7 +1,7 @@
-from fastapi import FastAPI
+from fastapi import APIRouter
 from pydantic import BaseModel
 
-app = FastAPI()
+router = APIRouter()
 
 area_avg = {
     "thanjavur": 248,
@@ -21,15 +21,15 @@ class CompareResponse(BaseModel):
     percent_difference: float
 
 
-@app.get("/compare", response_model=CompareResponse)
+@router.get("/compare", response_model=CompareResponse)
 def compare(area: str, units: float):
 
-    avg = area_avg.get(area.strip().lower(), 270)#270 defaultvalue
+    avg = area_avg.get(area.strip().lower(), 270)  # default value
 
     difference = units - avg
 
     percent = round((difference / avg) * 100, 2)
-    #return model with pydantic 
+
     return CompareResponse(
         your_units=units,
         area_average=avg,
