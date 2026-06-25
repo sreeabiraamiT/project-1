@@ -113,3 +113,65 @@ async def run_complete_student2_pipeline(file: UploadFile) -> dict:
         "ai_summary": str(data.get("ai_summary", "Extraction complete.")),
         "saving_tips": list(data.get("saving_tips", ["Optimize usage where applicable."]))
     }
+
+
+async def generate_tips_for_manual_entry(units_consumed: float, tariff_category: str) -> dict:
+    """
+    Generates AI summary + saving tips from manually entered bill data
+    (no scanned file available — text-only prompt to Gemini).
+    """
+    prompt = f"""
+    You are an expert electricity bill analysis assistant.
+    A user manually entered their electricity bill details (no scanned bill available):
+
+    - Tariff Category: {tariff_category}
+    - Units Consumed: {units_consumed} kWh
+
+    Return ONLY a valid JSON object with these exact keys:
+    {{
+      "ai_summary": "A brief 2-3 sentence summary of the consumption behavior displayed.",
+      "saving_tips": ["Actionable Tip 1", "Actionable Tip 2", "Actionable Tip 3"]
+    }}
+
+    Rules:
+    1. Tailor tips specifically to the tariff category and consumption level given.
+    2. Provide exactly 3 highly functional electricity-saving tips.
+    3. Do not include markdown tags like ```json or any trailing text.
+    """
+
+    max_attempts = 3
+    last_error = None
+    response = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[prompt]
+            )
+            break
+        except errors.ServerError as e:
+            last_error = e
+            if attempt < max_attempts:
+                await asyncio.sleep(2 * attempt)
+                continue
+        except errors.ClientError:
+            raise
+
+    if response is None:
+        raise AIServiceUnavailableError(
+            "The AI analysis service is currently experiencing high demand. "
+            "Please try again in a minute."
+        ) from last_error
+
+    raw_text = response.text.strip().replace("```json", "").replace("```", "").strip()
+
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError:
+        raise ValueError("AI response structure could not be correctly decoded into structured JSON data.")
+
+    return {
+        "ai_summary": str(data.get("ai_summary", "Analysis complete.")),
+        "saving_tips": list(data.get("saving_tips", ["Optimize usage where applicable."]))
+    }
