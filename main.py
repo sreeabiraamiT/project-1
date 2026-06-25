@@ -17,7 +17,7 @@ app = FastAPI(
 # This prevents browsers from blocking your frontend requests (CORS errors)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://project-1-14-rbn5.onrender.com/","http://localhost:5173"],  # your actual frontend URL
+    allow_origins=["http://localhost:5173"],  # your actual frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
