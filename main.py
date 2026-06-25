@@ -53,7 +53,23 @@ def home():
     Root landing response message.
     """
     return "Electricity bill analyser"
+@app.post("/send-digest")
+def send_digest(data: DigestRequest):
+    # Fetch user email dynamically here if needed, or stick to your layout:
+    to_email = f"user{data.user_id}@example.com"
+    
+    try:
+        pdf_path = create_pdf(data)
+        send_email_with_pdf(to_email, pdf_path, data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+    return {
+        "message": "PDF Digest Sent Successfully",
+        "email": to_email,
+        "user_id": data.user_id,
+        "bill_month": str(data.bill_month)
+    }
 
 if __name__ == "__main__":
     # Read the dynamic PORT variable given by Render, default to 8000 locally
