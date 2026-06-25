@@ -7,6 +7,7 @@ from database import engine, Base
 import models
 import upload, tips, history, digest_service  # Imported digest_service here
 from dotenv import load_dotenv
+import areacomp
 
 # Load .env variables right at startup so Gemini SDK can access the API key
 load_dotenv()
