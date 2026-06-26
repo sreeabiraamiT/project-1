@@ -7,11 +7,9 @@ from sqlalchemy.orm import relationship
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    consumer_number = Column(String(12), primary_key=True, index=True)
     name = Column(String)
     email = Column(String, index=True)
-    created_at = Column(DateTime, server_default=func.now())
-
     bills = relationship("Bill", back_populates="user")
 
 
@@ -19,10 +17,13 @@ class Bill(Base):
     __tablename__ = "bills"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    consumer_number = Column(String)
+    consumer_number = Column(
+        String(12),
+        ForeignKey("users.consumer_number")
+    )
+    region=Column(String(50))
     bill_month = Column(Date)
-    tariff_category = Column(String)  
+    tariff_category = Column(String)
     units_consumed = Column(Float)
     amount_due = Column(Float)
     uploaded_at = Column(DateTime, server_default=func.now())
