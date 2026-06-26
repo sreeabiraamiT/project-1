@@ -21,7 +21,7 @@ app = FastAPI(
 app.include_router(areacomp.router)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://eb-bill-analyzer-ljp3.vercel.app/", "http://localhost:5173"],  # your actual frontend URL
+    allow_origins=["https://eb-bill-analyzer-ljp3.vercel.app", "http://localhost:5173"],  # your actual frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
