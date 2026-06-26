@@ -14,11 +14,66 @@ from services import (
 )
 
 router = APIRouter()
+REGION_MAP = {
+    "01": "Chennai North",
+    "02": "Chennai South",
+    "03": "Coimbatore",
+    "04": "Madurai",
+    "05": "Thanjavur",
+    "06": "Trichy",
+    "07": "Salem",
+    "08": "Tirunelveli",
+    "09": "Vellore",
+    "10": "Erode"
+}
+
+def calculate_amount_due(units_consumed: float, tariff_category: str):
+    tariff = tariff_category.strip().lower()
+
+    if tariff == "domestic":
+        if units_consumed <= 200:
+            amount_due = 0
+        elif units_consumed <= 400:
+            amount_due = (units_consumed - 200) * 4.70
+        elif units_consumed <= 500:
+            amount_due = (200 * 4.70) + ((units_consumed - 400) * 6.30)
+        elif units_consumed <= 600:
+            amount_due = (200 * 4.70) + (100 * 6.30) + ((units_consumed - 500) * 8.40)
+        elif units_consumed <= 800:
+            amount_due = (200 * 4.70) + (100 * 6.30) + (100 * 8.40) + ((units_consumed - 600) * 9.45)
+        elif units_consumed <= 1000:
+            amount_due = (
+                (200 * 4.70)
+                + (100 * 6.30)
+                + (100 * 8.40)
+                + (200 * 9.45)
+                + ((units_consumed - 800) * 10.50)
+            )
+        else:
+            amount_due = (
+                (200 * 4.70)
+                + (100 * 6.30)
+                + (100 * 8.40)
+                + (200 * 9.45)
+                + (200 * 10.50)
+                + ((units_consumed - 1000) * 11.55)
+            )
+
+    elif tariff == "commercial":
+        amount_due = units_consumed * 8.0
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid tariff category."
+        )
+
+    return round(amount_due, 2)
+    
 
 @router.post("/upload-bill", response_model=UploadBillResponse)
 async def upload_bill(
-    user_id: int = Form(...),
-    consumer_number: Optional[str] = Form(None),
+    consumer_number: Optional[str] = Form(None), 
     bill_month: Optional[date] = Form(None),
     tariff_category: Optional[str] = Form(None),
     units_consumed: Optional[float] = Form(None),
@@ -26,24 +81,9 @@ async def upload_bill(
     db: Session = Depends(get_db)
 ):
     try:
-        # 1. Check if user exists; if not, create a fallback profile
-        user = db.query(models.User).filter(models.User.id == user_id).first()
-        if not user:
-            user = models.User(
-                id=user_id,
-                name=f"User{user_id}",
-                email=f"user{user_id}@example.com"
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-
-        # Default fallback placeholders — only used if neither a file nor enough
-        # manual data is available to call the AI at all
         ai_summary = "Manual Entry — insufficient data for AI analysis."
         saving_tips = ["Conserve appliance usage where possible."]
 
-        # 2. If a bill file is uploaded, run the unified extraction & tips pipeline
         if file:
             pipeline_results = await run_complete_student2_pipeline(file)
 
@@ -57,9 +97,7 @@ async def upload_bill(
             ai_summary = pipeline_results["ai_summary"]
             saving_tips = pipeline_results["saving_tips"]
 
-        # 2b. No file, but the user typed in enough info manually —
-        # still get real, tailored AI tips instead of a static placeholder
-        elif units_consumed is not None and tariff_category is not None:
+        elif units_consumed is not None and tariff_category is not None and consumer_number is not None:
             manual_results = await generate_tips_for_manual_entry(
                 units_consumed=units_consumed,
                 tariff_category=tariff_category
@@ -67,35 +105,47 @@ async def upload_bill(
             ai_summary = manual_results["ai_summary"]
             saving_tips = manual_results["saving_tips"]
 
-        # 3. Validate that we have all mandatory fields (either from Form or AI)
+        # Validate that we have all core variables needed
         if any(v is None for v in [consumer_number, bill_month, tariff_category, units_consumed]):
             raise HTTPException(
                 status_code=400,
-                detail="Missing required bill fields. Please provide a valid file or complete all form fields."
+                detail="Missing required bill fields. Please provide a valid file or complete all form fields including consumer number."
             )
+        # Validate consumer number
+        consumer_number = consumer_number.strip()
+        if not consumer_number.isdigit():
+            raise HTTPException(status_code=400,detail="Consumer number must contain only digits.")
 
-        # 4. Calculate amount due based on the tariff tier rules
-        if tariff_category.lower() == "domestic":
-            amount_due = units_consumed * 7
-        elif tariff_category.lower() == "commercial":
-            amount_due = units_consumed * 8
-        else:
-            amount_due = units_consumed * 9
-
-        # 5. Save bill records to the database
-        new_bill = models.Bill(
-            user_id=user.id,
-            consumer_number=consumer_number,
-            bill_month=bill_month,
-            tariff_category=tariff_category,
-            units_consumed=units_consumed,
-            amount_due=amount_due
-        )
+        if len(consumer_number) not in (10, 12):
+            raise HTTPException(status_code=400, detail="Consumer number must be 10 or 12 digits.")
+        region_code=consumer_number[:2]
+        region_name=REGION_MAP.get(region_code,"UNKNOWN")
+        # Look up or create the User mapped to this consumer number
+        user = db.query(models.User).filter(models.User.consumer_number == consumer_number).first()
+        
+        if not user:
+            email_slug = "".join(e for e in consumer_number if e.isalnum())
+            # FIX: Do not pass an explicit 'id' attribute here. 
+            # Let the database handle auto-increment sequences cleanly.
+            user = models.User(consumer_number=consumer_number,name=f"User_{consumer_number}",email=f"user_{email_slug}@example.com")
+            db.add(user)
+            try:
+                db.commit()
+                db.refresh(user)
+            except Exception:
+                db.rollback()
+                # Safe fallback if concurrent requests attempt creation simultaneously
+                user = db.query(models.User).filter(models.User.name == user_name).first()
+    
+        amount_due = calculate_amount_due(units_consumed=units_consumed, tariff_category=tariff_category)
+        
+        # Save bill records to the database
+        new_bill = models.Bill(consumer_number=user.consumer_number,region=region_name,bill_month=bill_month,tariff_category=tariff_category,units_consumed=units_consumed,amount_due=amount_due)
         db.add(new_bill)
         db.commit()
         db.refresh(new_bill)
 
-        # 6. Save the analysis data (Summary + Saving Tips array) linked to the bill
+        # Save the analysis data
         new_analysis = models.Analysis(
             bill_id=new_bill.id,
             ai_summary=ai_summary,
@@ -105,16 +155,16 @@ async def upload_bill(
         db.commit()
         db.refresh(new_analysis)
 
-        # 7. Return the finalized response back to the client
         return UploadBillResponse(
-            bill_id=new_bill.id,
-            tariff_category=new_bill.tariff_category,
-            units_consumed=new_bill.units_consumed,
-            amount_due=new_bill.amount_due,
-            bill_month=str(new_bill.bill_month),
-            ai_summary=new_analysis.ai_summary,
-            saving_tips=new_analysis.saving_tips  # Returns the live JSON array directly
-        )
+    consumer_number=new_bill.consumer_number,
+    region=new_bill.region,
+    tariff_category=new_bill.tariff_category,
+    units_consumed=new_bill.units_consumed,
+    amount_due=new_bill.amount_due,
+    bill_month=str(new_bill.bill_month),
+    ai_summary=new_analysis.ai_summary,
+    saving_tips=new_analysis.saving_tips
+)
 
     except HTTPException:
         raise
