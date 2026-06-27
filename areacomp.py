@@ -4,14 +4,17 @@ from pydantic import BaseModel
 router = APIRouter()
 
 area_avg = {
-    "thanjavur": 248,
-    "trichy": 271,
-    "chennai": 310,
-    "madurai": 265,
-    "coimbatore": 289,
-    "salem": 254,
-    "tirunelveli": 242,
-    "erode": 258
+    "Chennai North": 420,
+    "Chennai South": 390,
+    "Coimbatore": 340,
+    "Madurai": 310,
+    "Thanjavur": 250,
+    "Trichy": 280,
+    "Salem": 295,
+    "Tirunelveli": 270,
+    "Vellore": 285,
+    "Erode": 300
+
 }
 
 class CompareResponse(BaseModel):
