@@ -22,6 +22,7 @@ class Bill(Base):
         ForeignKey("users.consumer_number")
     )
     region=Column(String(50))
+    cost_breakdown=Column(JSONB)
     bill_month = Column(Date)
     tariff_category = Column(String)
     units_consumed = Column(Float)
