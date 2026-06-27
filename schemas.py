@@ -2,10 +2,17 @@ from pydantic import BaseModel, ConfigDict,Field
 from datetime import date, datetime
 from typing import List
 
+class CostBreakdown(BaseModel):
+    slab:str
+    units:float
+    rate:float
+    cost:float
+
 class BillOut(BaseModel):
     id: int
     consumer_number: str
     region:str
+    cost_breakdown:List[CostBreakdown]
     bill_month: date
     tariff_category: str
     units_consumed: float
@@ -30,6 +37,7 @@ class UploadBillResponse(BaseModel):
     bill_month: str
     ai_summary: str
     saving_tips: List[str]
+    cost_breakdown:List[CostBreakdown]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -58,3 +66,4 @@ class BillCreate(BaseModel):
     bill_month: date
     tariff_category: str
     units_consumed: float
+
